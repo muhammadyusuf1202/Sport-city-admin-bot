@@ -161,7 +161,7 @@ async def enter_payment(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(payment=payment)
 
     if payment == "card":
-        await call.message.answer(f"💳 Sotuvchining karta raqami: {SELLER_CARD} siz Payme yoki Click orqali to'lashingiz mumkin \nEndi o‘z kartangiz raqamini kiriting:")
+        await call.message.answer(f"💳 Sotuvchining karta raqami: {SELLER_CARD} Maqsudov  siz Payme yoki Click orqali to'lashingiz mumkin \nEndi o‘z kartangiz raqamini kiriting:")
         await OrderFSM.user_card.set()
     else:
         await finalize_order(call.message, state, user_card="Naqd")
