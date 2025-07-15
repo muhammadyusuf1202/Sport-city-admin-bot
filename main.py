@@ -10,7 +10,7 @@ from aiogram.utils import executor
 from datetime import datetime
 
 API_TOKEN = '7310580762:AAGaxIWXKFUjUU4qoVARdWkHMRR0c9QSKLU'
-ADMINS = [807995985, 5751536492, 7435391786, 266461241]  # Admin Telegram IDs
+ADMINS = [807995985, 5751536492, 266461241]  # Admin Telegram IDs
 SELLER_CARD = "5614 8600 0311 6783"
 
 bot = Bot(token=API_TOKEN)
