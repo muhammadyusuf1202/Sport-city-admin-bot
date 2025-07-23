@@ -1,205 +1,178 @@
-import sqlite3
 import logging
-from aiogram import Bot, Dispatcher, types, executor
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
+import sqlite3
+from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-API_TOKEN = '7310580762:AAGaxIWXKFUjUU4qoVARdWkHMRR0c9QSKLU'
+API_TOKEN = "7310580762:AAGaxIWXKFUjUU4qoVARdWkHMRR0c9QSKLU"
 ADMIN_IDS = [807995985, 5751536492, 7435391786, 266461241]
 
-# Logger
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher(bot, storage=MemoryStorage())
 logging.basicConfig(level=logging.INFO)
 
-# Bot setup
-bot = Bot(token=API_TOKEN)
-storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
-
-# DB
-db = sqlite3.connect('bot.db')
-cursor = db.cursor()
-
-cursor.execute('''CREATE TABLE IF NOT EXISTS products (
+conn = sqlite3.connect("adminbot.db")
+cur = conn.cursor()
+cur.execute("""CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER UNIQUE,
+    username TEXT
+)""")
+cur.execute("""CREATE TABLE IF NOT EXISTS admins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER UNIQUE,
+    username TEXT
+)""")
+cur.execute("""CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     photo TEXT,
     name TEXT,
     model TEXT,
     price TEXT,
     size TEXT,
-    made_in TEXT
-)''')
+    madein TEXT
+)""")
+conn.commit()
 
-cursor.execute('''CREATE TABLE IF NOT EXISTS admins (
-    id INTEGER PRIMARY KEY,
-    username TEXT
-)''')
+STICKERS = {
+    "welcome": "CAACAgUAAxkBAAEBhSxkXzS4uRhF_3ELeN78gi5KZ3KZmAAC6wIAAvcCyFYQyiUkyNud6zAE",
+    "error": "CAACAgUAAxkBAAEBhTdkXzT0sjgJWk3kGh7iTyIlbEWgXgACfAEAApPjyVZ0cHHPZ3uOWjAE",
+    "success": "CAACAgUAAxkBAAEBhTlkXzUV0prBvK_TyeGn6oUpoamf9AACMwADVp29CvbfblxC3KqOMwQ",
+}
 
-cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY,
-    username TEXT
-)''')
-
-db.commit()
-
-
-# States
-class AddProduct(StatesGroup):
+class AddFSM(StatesGroup):
     photo = State()
     name = State()
     model = State()
     price = State()
     size = State()
-    made_in = State()
+    madein = State()
 
+@dp.message_handler(commands=["start"])
+async def start(msg: types.Message):
+    user_id = msg.from_user.id
+    username = msg.from_user.username
+    if username:
+        cur.execute("INSERT OR IGNORE INTO users (telegram_id, username) VALUES (?, ?)", (user_id, username))
+        conn.commit()
+    if user_id in ADMIN_IDS:
+        cur.execute("INSERT OR IGNORE INTO admins (telegram_id, username) VALUES (?, ?)", (user_id, username))
+        conn.commit()
+    await msg.answer_sticker(STICKERS["welcome"])
+    await msg.answer(f"👋 Assalomu alaykum, {msg.from_user.full_name}!\nQuyidagi komandalarni ishlatishingiz mumkin:",
+        reply_markup=types.ReplyKeyboardMarkup(resize_keyboard=True).add(
+            "/add", "/products", "/edit", "/delete", "/search", "/admins"
+        )
+    )
 
-class EditProduct(StatesGroup):
-    select_id = State()
-    field = State()
-    new_value = State()
+@dp.message_handler(commands=["add"])
+async def add_start(msg: types.Message):
+    if msg.from_user.id not in ADMIN_IDS:
+        return await msg.answer_sticker(STICKERS["error"])
+    await msg.answer("🖼 Mahsulot rasmi yuboring:")
+    await AddFSM.photo.set()
 
+@dp.message_handler(content_types=["photo"], state=AddFSM.photo)
+async def add_photo(msg: types.Message, state: FSMContext):
+    await state.update_data(photo=msg.photo[-1].file_id)
+    await msg.answer("📛 Mahsulot nomini yuboring:")
+    await AddFSM.name.set()
 
-# Utils
-def is_admin(user_id):
-    return user_id in ADMIN_IDS
+@dp.message_handler(state=AddFSM.name)
+async def add_name(msg: types.Message, state: FSMContext):
+    await state.update_data(name=msg.text)
+    await msg.answer("📦 Modelini yuboring:")
+    await AddFSM.model.set()
 
+@dp.message_handler(state=AddFSM.model)
+async def add_model(msg: types.Message, state: FSMContext):
+    await state.update_data(model=msg.text)
+    await msg.answer("💰 Narxini yuboring:")
+    await AddFSM.price.set()
 
-# Start
-@dp.message_handler(commands=['start'])
-async def start_handler(message: types.Message):
-    user_id = message.from_user.id
-    username = message.from_user.username or "NoUsername"
-    if is_admin(user_id):
-        cursor.execute("INSERT OR IGNORE INTO admins VALUES (?, ?)", (user_id, username))
-    else:
-        cursor.execute("INSERT OR IGNORE INTO users VALUES (?, ?)", (user_id, username))
-    db.commit()
-    await message.answer("Botga xush kelibsiz!")
+@dp.message_handler(state=AddFSM.price)
+async def add_price(msg: types.Message, state: FSMContext):
+    await state.update_data(price=msg.text)
+    await msg.answer("📐 Razmer (Bor/Yoq):")
+    await AddFSM.size.set()
 
+@dp.message_handler(state=AddFSM.size)
+async def add_size(msg: types.Message, state: FSMContext):
+    await state.update_data(size=msg.text)
+    await msg.answer("🏷 Qayerda ishlab chiqarilgan (Made in...):")
+    await AddFSM.madein.set()
 
-# /add
-@dp.message_handler(commands=['add'])
-async def add_product(message: types.Message):
-    if not is_admin(message.from_user.id):
-        return await message.answer("Bu buyruq faqat adminlar uchun.")
-    await message.answer("Mahsulot rasmini yuboring:")
-    await AddProduct.photo.set()
-
-
-@dp.message_handler(content_types=types.ContentType.PHOTO, state=AddProduct.photo)
-async def add_photo(message: types.Message, state: FSMContext):
-    await state.update_data(photo=message.photo[-1].file_id)
-    await message.answer("Mahsulot nomini kiriting:")
-    await AddProduct.next()
-
-
-@dp.message_handler(state=AddProduct.name)
-async def add_name(message: types.Message, state: FSMContext):
-    await state.update_data(name=message.text)
-    await message.answer("Modelni kiriting:")
-    await AddProduct.next()
-
-
-@dp.message_handler(state=AddProduct.model)
-async def add_model(message: types.Message, state: FSMContext):
-    await state.update_data(model=message.text)
-    await message.answer("Narxini kiriting:")
-    await AddProduct.next()
-
-
-@dp.message_handler(state=AddProduct.price)
-async def add_price(message: types.Message, state: FSMContext):
-    await state.update_data(price=message.text)
-    await message.answer("Razmeri (Bor/Yo'q):")
-    await AddProduct.next()
-
-
-@dp.message_handler(state=AddProduct.size)
-async def add_size(message: types.Message, state: FSMContext):
-    await state.update_data(size=message.text)
-    await message.answer("Made in qayer?")
-    await AddProduct.next()
-
-
-@dp.message_handler(state=AddProduct.made_in)
-async def add_madein(message: types.Message, state: FSMContext):
+@dp.message_handler(state=AddFSM.madein)
+async def add_done(msg: types.Message, state: FSMContext):
     data = await state.get_data()
-    cursor.execute("INSERT INTO products (photo, name, model, price, size, made_in) VALUES (?, ?, ?, ?, ?, ?)",
-                   (data['photo'], data['name'], data['model'], data['price'], data['size'], message.text))
-    db.commit()
-    await message.answer("Mahsulot qo‘shildi ✅")
+    cur.execute("INSERT INTO products (photo, name, model, price, size, madein) VALUES (?, ?, ?, ?, ?, ?)",
+        (data["photo"], data["name"], data["model"], data["price"], data["size"], msg.text))
+    conn.commit()
+    await msg.answer_sticker(STICKERS["success"])
+    await msg.answer("✅ Mahsulot qo‘shildi!")
     await state.finish()
 
-
-# /products
-@dp.message_handler(commands=['products'])
-async def show_products(message: types.Message):
-    if not is_admin(message.from_user.id):
-        return await message.answer("Bu buyruq faqat adminlar uchun.")
-    cursor.execute("SELECT * FROM products")
-    rows = cursor.fetchall()
+@dp.message_handler(commands=["products"])
+async def list_products(msg: types.Message):
+    if msg.from_user.id not in ADMIN_IDS:
+        return await msg.answer_sticker(STICKERS["error"])
+    cur.execute("SELECT * FROM products")
+    rows = cur.fetchall()
     if not rows:
-        return await message.answer("Mahsulotlar yo‘q.")
+        return await msg.answer("🛒 Mahsulotlar yo‘q.")
     for row in rows:
-        await bot.send_photo(message.chat.id, row[1], caption=f"🏷 {row[2]}\n📦 Model: {row[3]}\n💵 Narx: {row[4]}\n📏 Razmer: {row[5]}\n🏭 Made in: {row[6]}")
+        product_id, photo, name, model, price, size, madein = row
+        caption = f"<b>📛 {name}</b>\n📦 Model: {model}\n💰 Narx: {price}\n📐 Razmer: {size}\n🏷 {madein}\n🆔 ID: {product_id}"
+        await msg.answer_photo(photo=photo, caption=caption, parse_mode="HTML")
 
+@dp.message_handler(commands=["delete"])
+async def delete_product(msg: types.Message):
+    if msg.from_user.id not in ADMIN_IDS:
+        return await msg.answer_sticker(STICKERS["error"])
+    await msg.answer("🆔 O‘chirmoqchi bo‘lgan mahsulot ID sini yuboring:")
 
-# /delete
-@dp.message_handler(commands=['delete'])
-async def delete_product(message: types.Message):
-    if not is_admin(message.from_user.id):
-        return await message.answer("Bu buyruq faqat adminlar uchun.")
-    cursor.execute("SELECT id, name FROM products")
-    rows = cursor.fetchall()
-    if not rows:
-        return await message.answer("Mahsulotlar yo‘q.")
-    buttons = InlineKeyboardMarkup()
-    for row in rows:
-        buttons.add(InlineKeyboardButton(f"{row[1]} (ID: {row[0]})", callback_data=f"del_{row[0]}"))
-    await message.answer("Qaysi mahsulotni o‘chirasiz?", reply_markup=buttons)
+    @dp.message_handler()
+    async def do_delete(m: types.Message):
+        cur.execute("DELETE FROM products WHERE id = ?", (m.text,))
+        conn.commit()
+        await m.answer("🗑 O‘chirildi!")
 
+@dp.message_handler(commands=["search"])
+async def search_handler(msg: types.Message):
+    if msg.from_user.id not in ADMIN_IDS:
+        return await msg.answer_sticker(STICKERS["error"])
+    await msg.answer("🔍 Qidiruv uchun model yoki nom kiriting:")
 
-@dp.callback_query_handler(lambda c: c.data.startswith("del_"))
-async def delete_callback(call: types.CallbackQuery):
-    product_id = int(call.data.split("_")[1])
-    cursor.execute("DELETE FROM products WHERE id = ?", (product_id,))
-    db.commit()
-    await call.message.edit_text("🗑 Mahsulot o‘chirildi.")
+    @dp.message_handler()
+    async def do_search(m: types.Message):
+        q = f"%{m.text}%"
+        cur.execute("SELECT * FROM products WHERE name LIKE ? OR model LIKE ?", (q, q))
+        rows = cur.fetchall()
+        if not rows:
+            return await m.answer("❌ Topilmadi.")
+        for row in rows:
+            product_id, photo, name, model, price, size, madein = row
+            text = f"<b>📛 {name}</b>\n📦 {model}\n💰 {price}\n📐 {size}\n🏷 {madein}"
+            await m.answer_photo(photo=photo, caption=text, parse_mode="HTML")
 
+@dp.message_handler(commands=["admins"])
+async def admin_list(msg: types.Message):
+    if msg.from_user.id not in ADMIN_IDS:
+        return await msg.answer_sticker(STICKERS["error"])
+    cur.execute("SELECT * FROM admins")
+    admins = cur.fetchall()
+    kb = InlineKeyboardMarkup(row_width=1)
+    for _, telegram_id, username in admins:
+        btn = InlineKeyboardButton(text=f"@{username}", url=f"https://t.me/{username}")
+        kb.add(btn)
+    await msg.answer("🧑‍💻 Adminlar:", reply_markup=kb)
 
-# /admins
-@dp.message_handler(commands=['admins'])
-async def list_admins(message: types.Message):
-    cursor.execute("SELECT * FROM admins")
-    rows = cursor.fetchall()
-    markup = InlineKeyboardMarkup()
-    for row in rows:
-        markup.add(InlineKeyboardButton(f"{row[1]} (ID: {row[0]})", callback_data="none"))
-    await message.answer("Adminlar ro‘yxati:", reply_markup=markup)
-
-
-# /search
-@dp.message_handler(commands=['search'])
-async def search_product(message: types.Message):
-    if not is_admin(message.from_user.id):
-        return await message.answer("Bu buyruq faqat adminlar uchun.")
-    query = message.get_args()
-    if not query:
-        return await message.answer("🔍 Nomi yoki modeli yozing: /search model yoki nom")
-    cursor.execute("SELECT * FROM products WHERE name LIKE ? OR model LIKE ?", (f'%{query}%', f'%{query}%'))
-    results = cursor.fetchall()
-    if not results:
-        return await message.answer("Hech narsa topilmadi.")
-    for row in results:
-        await bot.send_photo(message.chat.id, row[1], caption=f"🏷 {row[2]}\n📦 Model: {row[3]}\n💵 Narx: {row[4]}\n📏 Razmer: {row[5]}\n🏭 Made in: {row[6]}")
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
 
 
-
-
 # API_TOKEN = '7310580762:AAGaxIWXKFUjUU4qoVARdWkHMRR0c9QSKLU'
-# ADMIN_IDS = [807995985, 5751536492, 7435391786, 266461241]  # Replace with real admin ID
+# ADMIN_IDS = [807995985, 5751536492, 7435391786, 266461241]
+
