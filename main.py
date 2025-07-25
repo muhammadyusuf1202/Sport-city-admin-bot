@@ -240,8 +240,9 @@ async def cmd_admins(message: types.Message):
         text += f"▫️ @{uname} — ID: <code>{tid}</code>\n"
     await message.answer(text, parse_mode="HTML")
     
- if __name__ == '__main__':
+if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+
 
 
 
