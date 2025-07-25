@@ -1,3 +1,4 @@
+# from aiogram import executor
 import sqlite3
 import logging
 from aiogram import Bot, Dispatcher, executor, types
@@ -238,8 +239,8 @@ async def cmd_admins(message: types.Message):
     for tid, uname in rows:
         text += f"▫️ @{uname} — ID: <code>{tid}</code>\n"
     await message.answer(text, parse_mode="HTML")
+    
  if __name__ == '__main__':
-    from aiogram import executor
     executor.start_polling(dp, skip_updates=True)
 
 
