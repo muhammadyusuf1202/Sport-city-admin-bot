@@ -73,7 +73,7 @@ async def cmd_start(message: types.Message):
 @dp.message_handler(commands=['add'])
 async def add_start(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
-        return await message	answer("⛔ Siz admin emassiz.")
+        return await message.answer("⛔ Siz admin emassiz.")
     await message.answer("📷 Mahsulot rasmini yuboring:")
     await AddProduct.image.set()
 @dp.message_handler(content_types=types.ContentType.PHOTO, state=AddProduct.image)
