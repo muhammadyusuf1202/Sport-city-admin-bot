@@ -7,7 +7,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 # Bot token va admin IDlari
- API_TOKEN = '7310580762:AAGaxIWXKFUjUU4qoVARdWkHMRR0c9QSKLU'
+API_TOKEN = '7310580762:AAGaxIWXKFUjUU4qoVARdWkHMRR0c9QSKLU'
 ADMIN_IDS = [807995985, 5751536492, 7435391786, 266461241]
 
 logging.basicConfig(level=logging.INFO)
@@ -238,7 +238,7 @@ async def cmd_admins(message: types.Message):
     for tid, uname in rows:
         text += f"▫️ @{uname} — ID: <code>{tid}</code>\n"
     await message.answer(text, parse_mode="HTML")
-if __name__ == '__main__':
+ if __name__ == '__main__':
     from aiogram import executor
     executor.start_polling(dp, skip_updates=True)
 
