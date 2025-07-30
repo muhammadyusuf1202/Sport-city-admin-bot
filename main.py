@@ -230,7 +230,7 @@ async def callback_delete(c: types.CallbackQuery):
     await c.answer("O‘chirildi")
 @dp.message_handler(commands=['search'])
 async def search_product_command(message: types.Message):
-    if message.from_user.id not in ADMINS:
+    if message.from_user.id not in ADMIN_IDS:
         return await message.answer("Siz admin emassiz.")
     await message.answer("Qidirilayotgan mahsulot **modelini** kiriting:")
     await SearchStates.waiting_for_model.set()
