@@ -142,17 +142,38 @@ async def process_made_in(message: types.Message, state: FSMContext):
 async def cmd_products(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
         return await message.answer("⛔ Bu buyruq faqat adminlar uchun")
-    cur.execute("SELECT id, name, model, price, size_status, size_value, made_in, image_id FROM products")
+    
+    cur.execute("SELECT id, name FROM products")
     items = cur.fetchall()
+    
     if not items:
         return await message.answer("📭 Mahsulotlar mavjud emas.")
-    for item in items:
-        pid, name, model_, price_, sz_stat, sz_val, made_in_, img_id = item
-        cap = f"<b>{name}</b>\n📦 Model: {model_}\n💰 Narx: {price_}\n📏 Razmer: {sz_stat} ({sz_val})\n🏷 {made_in_}"
-        kb = InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton("📝 Tahrirlash", callback_data=f"edit_{pid}"))
-        kb.add(InlineKeyboardButton("🗑 O‘chirish", callback_data=f"delete_{pid}"))
-        await bot.send_photo(message.chat.id, img_id, caption=cap, parse_mode="HTML", reply_markup=kb)
+    
+    kb = InlineKeyboardMarkup(row_width=1)
+    for pid, name in items:
+        kb.add(InlineKeyboardButton(name, callback_data=f"view_{pid}"))
+    
+    await message.answer("📦 Mahsulotlar ro'yxati:", reply_markup=kb)
+
+@dp.callback_query_handler(lambda c: c.data.startswith("view_"))
+async def view_product(c: types.CallbackQuery):
+    pid = int(c.data.split("_")[1])
+    cur.execute("SELECT name, model, price, size_status, size_value, made_in, image_id FROM products WHERE id = ?", (pid,))
+    item = cur.fetchone()
+    
+    if not item:
+        return await c.message.answer("❌ Mahsulot topilmadi.")
+    
+    name, model, price, sz_stat, sz_val, made_in_, img_id = item
+    caption = f"<b>{name}</b>\n📦 Model: {model}\n💰 Narx: {price}\n📏 Razmer: {sz_stat} ({sz_val})\n🏷 {made_in_}"
+    
+    kb = InlineKeyboardMarkup()
+    kb.add(InlineKeyboardButton("📝 Tahrirlash", callback_data=f"edit_{pid}"))
+    kb.add(InlineKeyboardButton("🗑 O‘chirish", callback_data=f"delete_{pid}"))
+    
+    await bot.send_photo(c.message.chat.id, img_id, caption=caption, parse_mode="HTML", reply_markup=kb)
+    await c.answer()
+
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 class EditProduct(StatesGroup):
