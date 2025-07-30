@@ -244,7 +244,7 @@ async def show_matching_products(message: types.Message, state: FSMContext):
     model_query = message.text.lower()
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute("SELECT id, name, model FROM products WHERE LOWER(product_model) LIKE ?", ('%' + model_query + '%',))
+    c.execute("SELECT id, name, model FROM products WHERE LOWER(model) LIKE ?", ('%' + model_query + '%',))
     results = c.fetchall()
     conn.close()
 
