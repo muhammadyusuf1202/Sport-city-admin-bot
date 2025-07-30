@@ -229,24 +229,35 @@ async def callback_delete(c: types.CallbackQuery):
     await c.message.edit_caption("🗑 Mahsulot o‘chirildi", parse_mode="HTML")
     await c.answer("O‘chirildi")
 @dp.message_handler(commands=['search'])
-async def cmd_search(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return await message.answer("⛔ Siz admin emassiz")
-    await message.answer("Qidiriladigan mahsulot nomi yoki modelini yozing:")
+async def search_product_command(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.answer("Siz admin emassiz.")
+    await message.answer("Qidirilayotgan mahsulot **modelini** kiriting:")
+    await SearchStates.waiting_for_model.set()
 
-@dp.message_handler(lambda m: m.text and not m.text.startswith('/'))
-async def search_handler(message: types.Message):
-    term = message.text.lower()
-    cur.execute("SELECT id, name, model, price, size_status, size_value, made_in, image_id FROM products")
-    items = cur.fetchall()
-    found = False
-    for pid, name, model_, price_, sz_stat, sz_val, made_in_, img in items:
-        if term in name.lower() or term in model_.lower():
-            cap = f"<b>{name}</b>\n📦 Model: {model_}\n💰 Narx: {price_}\n📏 Razmer: {sz_stat} ({sz_val})\n🏷 {made_in_}"
-            await bot.send_photo(message.chat.id, img, caption=cap, parse_mode="HTML")
-            found = True
-    if not found:
-        await message.answer("❌ Mahsulot topilmadi.")
+class SearchStates(StatesGroup):
+    waiting_for_model = State()
+
+
+@dp.message_handler(state=SearchStates.waiting_for_model)
+async def show_matching_products(message: types.Message, state: FSMContext):
+    model_query = message.text.lower()
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute("SELECT id, product_name, product_model FROM products WHERE LOWER(product_model) LIKE ?", ('%' + model_query + '%',))
+    results = c.fetchall()
+    conn.close()
+
+    if not results:
+        await message.answer("Hech qanday mahsulot topilmadi.")
+    else:
+        keyboard = InlineKeyboardMarkup(row_width=1)
+        for product_id, name, model in results:
+            keyboard.add(InlineKeyboardButton(text=f"{name} - {model}", callback_data=f"view_{product_id}"))
+        await message.answer("Topilgan mahsulotlar:", reply_markup=keyboard)
+
+    await state.finish()
+
 
 @dp.message_handler(commands=['admins'])
 async def cmd_admins(message: types.Message):
