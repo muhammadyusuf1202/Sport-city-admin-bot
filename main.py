@@ -112,12 +112,12 @@ async def process_size_status(c: types.CallbackQuery, state: FSMContext):
     if status == "Bor":
         await bot.send_message(c.from_user.id, "📏 Iltimos, razmer qiymatini kiriting (masalan: 40, M, L):")
         await AddProduct.size_value.set()
-    else:
-        # agar yo‘q bo‘lsa razmer qiymati "-" bo‘ladi
-        await state.update_data(size_value="-")
-        await bot.send_message(c.from_user.id, "🏭 Qayerda ishlab chiqarilganligini kiriting:")
-        await state.set_state(AddProduct.made_in)
-    await c.answer()
+    # else:
+    #     # agar yo‘q bo‘lsa razmer qiymati "-" bo‘ladi
+    #     await state.update_data(size_value="-")
+    #     await bot.send_message(c.from_user.id, "🏭 Qayerda ishlab chiqarilganligini kiriting:")
+    #     await state.set_state(AddProduct.made_in)
+    # await c.answer()
 
 @dp.message_handler(state=AddProduct.size_value)
 async def process_size_value(message: types.Message, state: FSMContext):
