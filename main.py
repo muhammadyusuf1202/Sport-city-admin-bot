@@ -116,7 +116,7 @@ async def process_size_status(c: types.CallbackQuery, state: FSMContext):
         # agar yo‘q bo‘lsa razmer qiymati "-" bo‘ladi
         await state.update_data(size_value="-")
         await bot.send_message(c.from_user.id, "🏭 Qayerda ishlab chiqarilganligini kiriting:")
-        await AddProduct.made_in.set()
+        await state.set_state(AddProduct.made_in)
     await c.answer()
 
 @dp.message_handler(state=AddProduct.size_value)
