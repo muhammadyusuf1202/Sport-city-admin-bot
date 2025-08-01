@@ -130,7 +130,7 @@ async def process_made_in(message: types.Message, state: FSMContext):
     await state.update_data(made_in=message.text.strip())
     data = await state.get_data()
     cur.execute("""
-INSERT INTO products (admin_id, image_id, name, model, price, size_status, size_value, made_in),
+INSERT INTO products (admin_id, image_id, name, model, price, size_status, size_value, made_in)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (message.from_user.id,
           data['image_id'], data['name'], data['model'], data['price'],
