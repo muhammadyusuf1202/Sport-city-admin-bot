@@ -16,7 +16,7 @@ bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 
 # SQLite bazasini tashkil etish
-conn = sqlite3.connect("bot_db.sqlite3")
+conn = sqlite3.connect("sport_city.db")
 cur = conn.cursor()
 
 cur.execute("""CREATE TABLE IF NOT EXISTS users (
@@ -242,7 +242,7 @@ class SearchStates(StatesGroup):
 @dp.message_handler(state=SearchStates.waiting_for_model)
 async def show_matching_products(message: types.Message, state: FSMContext):
     model_query = message.text.lower()
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect('sport_city.db')
     c = conn.cursor()
     c.execute("SELECT id, name, model FROM products WHERE LOWER(model) LIKE ?", ('%' + model_query + '%',))
     results = c.fetchall()
